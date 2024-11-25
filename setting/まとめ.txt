@@ -63,4 +63,9 @@ C:詳細
 　②INPUTディレクトリに外部ファイルが存在しない場合
 　　insertionのコンテンツ　uri : ./+ファイル名、hash値：空
 
-　　
+
+D:python実行環境の構築
+[pythonパッケージのインストール]
+・pandas
+・xmltodict
+・openpyxl
