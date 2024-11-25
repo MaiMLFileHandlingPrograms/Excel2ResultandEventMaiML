@@ -66,6 +66,4 @@ C:詳細
 
 D:python実行環境の構築
 [pythonパッケージのインストール]
-・pandas
-・xmltodict
-・openpyxl
+・requirements.txt
