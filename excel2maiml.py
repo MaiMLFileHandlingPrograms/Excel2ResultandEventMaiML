@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, re
 import copy,hashlib,mimetypes
 import uuid as UUID
 import pandas as pd
@@ -36,7 +36,36 @@ def changeTimeFormat(e_datetime):
     #print(datetime) # 2024-03-05T09:03:00-09:00
     return datetime
 
+
+### エクセルの文字列指定'をフォーマット #################################################
+def formatter_dash(value):
+    return value.lstrip("'")
+
+
+### valueの数値をフォーマット #################################################
+def formatter_num(format_string, number):
+    if '.' in format_string:
+        decimal_places = len(format_string.split('.')[1])  # 小数点以下の桁数
+    else:
+        decimal_places = 0
     
+    # 小数点以下の桁数に基づいて数値をフォーマット
+    if decimal_places == 0:
+        formatted = "{:.0f}".format(int(number))  # 整数としてフォーマット
+    elif decimal_places == 1:
+        formatted = "{:.1f}".format(float(number))  # 小数点以下1桁
+    elif decimal_places == 2:
+        formatted = "{:.2f}".format(float(number))  # 小数点以下2桁
+    elif decimal_places == 3:
+        formatted = "{:.3f}".format(float(number))  # 小数点以下3桁
+    elif decimal_places == 4:
+        formatted = "{:.4f}".format(float(number))  # 小数点以下4桁
+    else:
+        formatted = number  # それ以外の場合
+    
+    return formatted
+
+
 ### insertionコンテンツを作成 #################################################
 def makeInsertion(value, otherspath):
     filename = str(value)
@@ -74,7 +103,12 @@ def makeProperty(propertylist,key,value):
     #propertylist = instancedict[maimlelement.property]
     for propertydict in propertylist:
         if propertydict[maimlelement.keyd] == key:
-            propertydict[maimlelement.value] = str(value)
+            ## excel特有の文字列前の'を削除
+            value = formatter_dash(str(value))
+            if maimlelement.formatStringd in propertydict:
+                propertydict[maimlelement.value] = formatter_num(propertydict[maimlelement.formatStringd], value)
+            else:
+                propertydict[maimlelement.value] = value
             return propertylist
         else:
             pass
@@ -104,28 +138,38 @@ def main(maimlpath, exfilepath, otherspath):
     methodIDlist = methoddict_ if isinstance(methoddict_,list) else [methoddict_]
     
     for methoddict in methodIDlist:
-        ### 1-5. instructionのIDを取得 programは１つとする
-        programdict = methoddict[maimlelement.program]
-        instructionID_ = programdict[maimlelement.instruction][maimlelement.idd]
-        instructionIDlist = instructionID_ if isinstance(instructionID_,list) else [instructionID_]
-        #### 1-3-2. trace実データ作成の準備
-        logdict_ = fullmaimldict[maimlelement.maiml][maimlelement.eventlog][maimlelement.log]
-        loglist = logdict_ if isinstance(logdict_,list) else [logdict_]
-        tracedict__ = {}
-        tracelist__ = []
-        for logdict in loglist:
-            if(logdict[maimlelement.refd] == methoddict[maimlelement.idd]):
-                tracelist__ = logdict.pop(maimlelement.trace)
-                tracelist__ = tracelist__ if isinstance(tracelist__,list) else [tracelist__]
-                for tracedict1 in tracelist__:
-                    tracedict__ = tracedict1 if tracedict1[maimlelement.refd] == programdict[maimlelement.idd] else {}
-        tracelist = []
-                        
+        instprogIDdict__ = {}
+        '''
+            instprogIDdict = {'instructionID':{
+                'programID':'',
+                'methodID':'',
+                },}
+        '''
+        programIDdict ={}
+        '''
+                programIDdict=['programID' : {
+                    'instlist':[{
+                                'insID':'',
+                                'column':''}],
+                    'tracedict':{}
+                },]'''
+        ### 1-5. methoddictに含まれるinstructionのIDを取得し、instructionIDlistリストを作成
+        programlist = methoddict[maimlelement.program] if isinstance(methoddict[maimlelement.program],list) else [methoddict[maimlelement.program]]
+        for programdict in programlist:
+            instructionlist = programdict[maimlelement.instruction] if isinstance(programdict[maimlelement.instruction],list) else [programdict[maimlelement.instruction]]
+            for instructiondict in instructionlist:
+                instprogIDdict__.update({
+                    instructiondict[maimlelement.idd]:{
+                    'programID':programdict[maimlelement.idd],
+                    #'methodID':methoddict[maimlelement.idd],
+                }})
+        
         ## 2. エクセルを読み込む
         df = pd.read_excel(exfilepath, sheet_name=methoddict[maimlelement.idd], header=None)
         ### 2-1. 1行目と2行目のデータを取り出しておく(テンプレートのID、キー)
         ### 2-1-1. 1行目のデータ
         row1_1 = df.iloc[0]
+        
         templateIDdict = {}
         '''
             templateIDdict = {
@@ -133,26 +177,59 @@ def main(maimlpath, exfilepath, otherspath):
                 'templateID2':[列番号のリスト],
                 }
         '''
-        row1 = row1_1[2:]
+        row1 = row1_1[1:]
         for index in row1.index:
             if pd.notna(row1[index]):
-                if templateIDdict and row1[index] in templateIDdict.keys(): # 該当キー（templateのID）に値（index）を追加
+                ## instruction or template
+                if row1[index] in instprogIDdict__.keys():
+                    #instructionIDlist += row1[index]
+                    '''
+                    instructionlist=
+                    {'instructionID1': {'programID': 'programIDtest2'}, 
+                     'instructionID2': {'programID': 'programIDtest2'}}
+                    '''
+                    programID = instprogIDdict__[row1[index]]['programID']
+                    if programID in programIDdict.keys():
+                        programIDdict[programID]['instlist'].append({'insID':row1[index], 'column':index})
+                    else:
+                        programIDdict[programID]={
+                                    'instlist':[{
+                                                'insID':row1[index],
+                                                'column':index}],
+                                }
+                elif templateIDdict and row1[index] in templateIDdict.keys(): # 該当キー（templateのID）に値（index）を追加
                     if isinstance(templateIDdict[row1[index]],list):
                         templateIDdict[row1[index]].append(index)
                     else:
                         templateIDdict[row1[index]] = [index]
                 else: # キーと値を追加
                     templateIDdict.update({row1[index]:[index]})
+         
+        #### 1-3-2. trace実データ作成の準備
+        logdict_ = fullmaimldict[maimlelement.maiml][maimlelement.eventlog][maimlelement.log]
+        loglist = logdict_ if isinstance(logdict_,list) else [logdict_]
+        tracelist__ = []
+        for logdict in loglist:
+            if(logdict[maimlelement.refd] == methoddict[maimlelement.idd]):
+                tracelist__ = logdict.pop(maimlelement.trace)
+                tracelist__ = tracelist__ if isinstance(tracelist__,list) else [tracelist__]
+                for tracedict1 in tracelist__:
+                    if tracedict1[maimlelement.refd] in programIDdict.keys():                    
+                        programIDdict[tracedict1[maimlelement.refd]].update({'tracedict':copy.deepcopy(tracedict1)})
+                    else:
+                        pass
+                    
         ### 2-1-2. 2行目のデータ
         row2 = df.iloc[1]
         
         ### 2-2. 3行目以降のデータをMaiMLデータに変換
         df_rest = df.iloc[2:]
         ### 2-2-1. 3行目以降のデータ１行ごとにreaults,traceを作成する
+        tracelist = []                    
         for row3 in df_rest.itertuples(index=True):
-            # results
+            #### 2-2-1-1. results
             resultsdict = copy.deepcopy(resultsdict__)
-            resultsdict[maimlelement.idd] = resultsdict[maimlelement.idd] + str(row3.Index)
+            resultsdict[maimlelement.idd] = str(row3[1])
             resultsdict[maimlelement.uuid] = str(UUID.uuid4())
             instancedictlist = []
             instancedictlist.extend(resultsdict[maimlelement.material] if isinstance(resultsdict[maimlelement.material],list) else [resultsdict[maimlelement.material]])
@@ -183,26 +260,67 @@ def main(maimlpath, exfilepath, otherspath):
                     print(templateID + " does not exist.")     
             resultslist.append(resultsdict)
             
-            # trace
-            tracedict = copy.deepcopy(tracedict__)
-            tracedict[maimlelement.idd] = tracedict[maimlelement.idd] + str(row3.Index)
-            tracedict[maimlelement.uuid] = str(UUID.uuid4())
-            # instruction（インスタンス）１つに対してeventを１つ
-            eventlist = tracedict[maimlelement.event]
-            for eventdict in eventlist: # eventlistに含まれるeventdictは１つ
-                eventdict[maimlelement.idd] = eventdict[maimlelement.idd] + str(row3.Index)
-                eventdict[maimlelement.uuid] = str(UUID.uuid4())
-                propertylist = eventdict[maimlelement.property] # 必ずlist
-                for propertydict in propertylist:
-                    if propertydict[maimlelement.keyd] == maimlelement.time:
-                        # 日付のフォーマット変換
-                        datetime = changeTimeFormat(row3[2])
-                        propertydict[maimlelement.value] = str(datetime)
-            tracelist.append(tracedict)
+            ### 2-2-1-1. trace
+            # エクセルの３行目以降、1行ごとにtraceを作成する
+            '''
+            programIDdict='progranID':{
+                'instlist':[{
+                            'insID':'',
+                            'column':''}],
+                'tracedict':{}
+            }
+            '''
+            for program_ID, insttracedict in programIDdict.items():
+                tracedict_ = copy.deepcopy(insttracedict['tracedict'])
+                instructionIDlist = insttracedict['instlist']
+                eventlist_ = []
+                eventpoplist = []
+                for instructionIDdict in instructionIDlist:
+                    ## instructionIDを参照しているeventを更新
+                    ## エクセル３行目のcolumnの値列の値（DATATIME）をMaiMLのフォーマットに変換
+                    dateindex = instructionIDdict['column']+1
+                    if pd.notna(row3[dateindex]):
+                        datetime = str(changeTimeFormat(row3[dateindex]))
+                    else:
+                        datetime = ''
+                    eventlist_ = tracedict_[maimlelement.event]
+                    for eindex, eventdict_ in enumerate(eventlist_):
+                        if eventdict_[maimlelement.refd] == instructionIDdict['insID']:
+                            eventdict_[maimlelement.idd] = eventdict_[maimlelement.idd] + str(row3.Index)
+                            eventdict_[maimlelement.uuid] = str(UUID.uuid4())
+                            eventdict_[maimlelement.resultsRef] = {
+                                                                    maimlelement.idd:eventdict_[maimlelement.idd]+'_resultref'+str(row3.Index), 
+                                                                    maimlelement.refd:resultsdict[maimlelement.idd]
+                                                                }
+                            #eventpoplist.append(eventdict_[maimlelement.idd]) ## 追加したeventのIDリスト
+                            propertylist = eventdict_[maimlelement.property] # 必ずlist
+                            for propertydict in propertylist:
+                                if propertydict[maimlelement.keyd] == maimlelement.time and datetime != '':
+                                    propertydict[maimlelement.value] = datetime
+                                    eventpoplist.append(eventdict_[maimlelement.idd]) ## 追加したeventのIDリスト
+                                else:
+                                    pass
+                        else:
+                            pass
+                ## エクセルに存在しないINSTRUCTIONに対応するeventは消してしまう
+                if eventpoplist :
+                    for eindex2, eventdict2_ in enumerate(eventlist_):
+                        if eventdict2_[maimlelement.idd] in eventpoplist:
+                            pass
+                        else:
+                            del eventlist_[eindex2]
+                    tracedict_[maimlelement.idd] = tracedict_[maimlelement.idd] + str(row3.Index)
+                    tracedict_[maimlelement.uuid] = str(UUID.uuid4())
+                    tracelist.append(tracedict_)
+                else :
+                    pass
+                
+        ## fulllmaimldictのlog[ref=methodID]のtracelistを、作成したtracelistで置き換える
         for logdict in loglist:
             if(logdict[maimlelement.refd] == methoddict[maimlelement.idd]):
                 logdict[maimlelement.trace] = tracelist
-                    
+                
+        ## fullmaimldict[results]を、作成したresultslistで置き換える
         fullmaimldict[maimlelement.maiml][maimlelement.data][maimlelement.results] = resultslist
     
     ## outputファイルを保存

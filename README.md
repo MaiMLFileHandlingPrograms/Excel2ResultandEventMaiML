@@ -1,10 +1,10 @@
 # Excel2MaiML
 ## A：実行方法
 ### [入出力データ]
-- 入力データ
+- 入力データ　　※条件等は下記[B:詳細]を参照
   1. document,protocolをもつMaiMLデータファイル <br/>
 　　INPUT/maiml/input.maiml  or  INPUT/xxxxx/yyyyyy.maiml 
-  1. 計測に使用した情報をもつエクセルデータ　※条件等は下記 <br/>
+  1. 計測に使用した情報をもつエクセルデータ<br/>
 　　INPUT/excel/input.xlsx  or  INPUT/xxxxx/zzzzzz.xlsx
 - 出力データ
   1. 入力データをマージしたMaiMLファイル <br/>
@@ -31,7 +31,7 @@
   ・instruction１つ <br/>
   ・program１つ <br/>
 
-### [エクセルデータ]
+### [入力するエクセルデータ]
   ・シート名はmethodのID <br/>
   ・１シートに１操作のデータが存在すること <br/>
   ・１行目３列以降にtemplateのID <br/>
