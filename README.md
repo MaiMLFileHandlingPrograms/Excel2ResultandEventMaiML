@@ -43,7 +43,13 @@
 　　　・１行目がinstructionのIDの列 <br/>
 　　　・３行目以降に計測した日時 <br/>
 　　・１行目がtemplateのIDの列 <br/>
-　　　・３行目以降にpropertyのキーに対する値 <br/>
+　　　・３行目以降にpropertyのキーに対する値 <br/> 
+<p align="center">
+  <img src="https://github.com/MaiMLFileHandlingPrograms/Excel2MaiML/blob/main/setting/%E5%85%A5%E5%8A%9B%E3%82%A8%E3%82%AF%E3%82%BB%E3%83%AB%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E8%AA%AC%E6%98%8E.jpeg" />
+</p>
+<p align="center">エクセルの記述方法</p>
+
+<br/>
 
 ### ［作成するMaiMLデータ］
   ・複数回の計測データをもつ場合はresultsを複数作成 <br/>
