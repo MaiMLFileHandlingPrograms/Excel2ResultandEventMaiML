@@ -24,6 +24,7 @@
 　　　※'XXXXX'は任意の名前 <br/>
 　1. コマンド実行 <br/>
 　　python3 excel2maiml.py XXXXX <br/>
+<br/>
 
 
 ## B:詳細
@@ -69,9 +70,24 @@
 　・エクセルデータにinstructionIDが存在し、かつ、日時のデータが存在する場合にeventを１つ作成 <br/>
 　　　key=lifecycle:transitionのvalueがcompleteのみ <br/>
 
+<br/>
 
 ## C:python実行環境の構築
 ### [pythonバージョン]
   ・3.12.x <br/>
 ### [pythonパッケージ]
   ・requirements.txt <br/>
+
+<br/>
+
+## D:サンプルデータ
+### [MaiMLファイル]
+  ・INPUT/maiml/input.maiml <br/>
+  　１つのmaterialTemplate(material)、１つのconditionTemplate(condition)を１つの操作の入力とし、resultTemplate(result)を１つ出力する計測を記載したMaiMLファイル <br/>
+### [Excelファイル]
+  ・INPUT/excel/input.xlsx <br/>
+  　input.maimlに記載した計測を実施し、使用もしくは取得したデータや入出力ファイル名を記載したエクセルファイル <br/>
+### [外部ファイル]
+  ・INPUT/others/Axoneme-56.008.tif <br/>
+  ・INPUT/others/test.txt <br/>
+  　計測時の入出力ファイルを新規MaiMLファイルに<insertion>要素を用いて記載する例として、input.xlsxファイルに記載した外部ファイル <br/>
