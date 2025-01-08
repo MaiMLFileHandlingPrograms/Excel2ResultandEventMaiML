@@ -696,7 +696,7 @@ class ReadWriteMaiML:
         for i in range(fileNum):
             maiml = maimlfiles[index]
             index += 1
-            with open(maiml, 'r') as inF:
+            with open(maiml, 'r', encoding='utf-8') as inF:
                 maiml_dic = xmltodict.parse(inF.read(), process_namespaces=True, namespaces=defaultNS.namespaces)
                 return maiml_dic
 
@@ -706,7 +706,7 @@ class ReadWriteMaiML:
             maimlfile = '/test/input_data/SEMDataSample.maiml'
         else:
             maimlfile = filepath
-        with open(maimlfile, 'r') as inF:
+        with open(maimlfile, 'r', encoding='utf-8') as inF:
             maiml_dic = xmltodict.parse(inF.read(), process_namespaces=True, namespaces=defaultNS.namespaces)
             return maiml_dic
 
