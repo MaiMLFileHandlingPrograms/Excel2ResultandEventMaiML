@@ -77,7 +77,7 @@
 				<conditionTemplate id="condition001">
 					<uuid>149fc2bd-52bd-4573-8ab4-a4127067daa8</uuid>
 					<description>condition template</description>
-					<property xsi:type="intType" key="temperature" formatString="0.0" unit="℃">
+					<property xsi:type="intType" key="temperature" formatString="0.0" unit=°C">
 						<value></value>
 					</property>
 					<property xsi:type="intType" key="waitingtime" formatString="0" unit="min">
