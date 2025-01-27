@@ -20,7 +20,7 @@ class maimlelement:
     property = 'property'
     content = 'content'
     uncertainty = 'uncertainty'
-    generalTagList = ['property', 'content']
+    generalTagList = ['property', 'content', 'uncertainty']
     value = 'value'  ## >=0
     templateRef = 'templateRef'      ## >=0
     instanceRef = 'instanceRef'    # >=0  参照要素
