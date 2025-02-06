@@ -1,4 +1,11 @@
 # Excel2MaiML
+<br/>
+
+# 2025/2/6　 [MaiML/Excel2MaiML](https://github.com/tacyas/MaiML/tree/main/Excel2MaiML) repositoryへ移行しました。
+<br/><br/><br/><br/><br/>
+
+
+
 ## A：実行方法
 ### [入出力データ]
 - 入力データ　　※条件等は下記[B:詳細]を参照
