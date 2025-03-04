@@ -18,7 +18,7 @@ def nan_to_empty_string(value):
 def create_uuid():
     return str(uuid.uuid4())
 
-### ID属性の値がnanの場合、デフォルト値を設定 ###
+### id属性の値がnanの場合、デフォルト値を設定 ###
 def setID(value, tag, prefix=""):
     if pd.isna(value) or value == "":
         return f"def{tag}{prefix}ID"
@@ -46,7 +46,7 @@ def formatter_num(format_string, number):
         formatted = number  # それ以外の場合
     return formatted
 
-### instructionのidを元に、親要素のprogramのidを検索して返す ###
+### instruction要素のidを基に、親要素のprogram要素のidを検索して返す ###
 def find_programID_by_instructionID(root, instruction_id):
     for program_elem in root.findall(".//program"):
         for instruction_elem in program_elem.findall(".//instruction"):
@@ -54,7 +54,7 @@ def find_programID_by_instructionID(root, instruction_id):
                 return program_elem.get("id"), instruction_elem.find("./uuid").text
     return None
 
-### insertionコンテンツを作成 ###
+### insertion要素のコンテンツを作成 ###
 def makeInsertion(value, instance_element, others_path=None):
     if pd.isna(value) or value == "":
         return instance_element
@@ -82,14 +82,14 @@ def makeInsertion(value, instance_element, others_path=None):
             hash_sha256 = hash_sha256.hexdigest()
         print("insertion file is loaded.: ", file_path)
     except FileNotFoundError as e:
-        print("入力ファイルがディレクトリに存在しないためスキップします。 ", filename)
+        print("Skip hash value generation because the input file does not exist in the directory. ", filename)
     except Exception as e:
         print(e)
         exit(1)
     ## insertion要素を追加
     insertion_element = ET.SubElement(instance_element, "insertion")
     insertion_uri_element = ET.SubElement(insertion_element, "uri")
-    insertion_uri_element.text = './'+ filename
+    insertion_uri_element.text = './'+ filename   # MaiMLと同じフォルダを設定
     insertion_hash_element = ET.SubElement(insertion_element, "hash")
     insertion_hash_element.text = str(hash_sha256)
     insertion_format_element = ET.SubElement(insertion_element, "format")
@@ -110,12 +110,12 @@ def get_current_datetime():
 ################################################################################################################
 
 
-## MaiMLファイルを読み込む
+### MaiMLファイルを読み込む ###
 def read_maiml(maiml_file):
     namespaces = {}
-    # 名前空間を保持しておく関数
+    ## 名前空間を保持しておく関数 ##
     def get_namespaces(xml_str):
-        ## ルート要素から名前空間の定義を取得する
+        # ルート要素から名前空間の定義を取得する
         import re
         namespaces = {}
         match = re.findall(r'xmlns:([^=]+)="([^"]+)"', xml_str)
@@ -126,8 +126,8 @@ def read_maiml(maiml_file):
             namespaces[""] = default_ns.group(1)  # デフォルト名前空間
         return namespaces
     
+    ## 名前空間を除去してタグを簡略化する関数 ##
     def strip_namespace(element):
-        ## 名前空間を除去してタグを簡略化する
         for elem in element.iter():
             elem.tag = elem.tag.split("}")[-1]  # 名前空間を削除
     
@@ -137,31 +137,29 @@ def read_maiml(maiml_file):
         xml_str = f.read()
         # 名前空間を保存
         namespaces = get_namespaces(xml_str)
-        
         ## maimlタグの'xsi:type'属性を削除
         for key in ['xsi:type="maimlRootType"','xsi:type="protocolFileRootType"', "xsi:type='maimlRootType'", "xsi:type='protocolFileRootTyp'"]:
             xml_str = xml_str.replace(key, '')
         
-    # 名前空間を気にせずにパース
+    # XML文字列をElementTreeで読み込む
     tree = ET.ElementTree(ET.fromstring(xml_str))
     #tree = ET.parse(maiml_file)
     root = tree.getroot()
         
-    # タグから名前空間プレフィックスを削除（名前空間を気にせずに処理するため,xmlns:xsiは残る）
+    # タグから名前空間プレフィックスを削除（名前空間を気にせずに処理するため/xmlns:xsiは残る）
     strip_namespace(root)
-
     return tree, root, namespaces
 
-## Excelファイルを読み込む
+## Excelファイルを読み込む ##
 def read_excel(excel_file):
     df = pd.read_excel(excel_file)
     return df
 
-## MaiMLデータとExcelデータをmerge
-### 1シート→1method要素、1log要素
-### 1行→1results,1trace要素
+## MaiMLデータとExcelデータをmerge ##
+# 1シート→1method要素、1log要素
+# 1行→1results,1trace要素
 def merge_data(root, xls, others_path=None):
-    # <data>要素と<eventLog>要素が存在する場合は削除
+    # 入力MaiMLデータに<data>要素と<eventLog>要素が存在する場合は削除
     data_elem = root.find("./data")
     if data_elem is not None:
         root.remove(data_elem)
@@ -169,56 +167,57 @@ def merge_data(root, xls, others_path=None):
     if eventLog_elem is not None:
         root.remove(eventLog_elem)
     
-    ## <data>要素を追加(id,uuidに自動生成した値を設定)
+    ## <data>要素を追加(id属性,<uuid>要素に自動生成した値を設定)
     data_element = ET.Element("data")
     data_element.set("id", setID("","data"))
     data_uuid_element = ET.SubElement(data_element, "uuid")
     data_uuid_element.text = create_uuid()
     
-    ## <eventLog>要素を追加(id,uuidに自動生成した値を設定)
+    ## <eventLog>要素を追加(id属性,<uuid>要素に自動生成した値を設定)
     eventLog_element = ET.Element("eventLog")
     eventLog_element.set("id", setID("","eventLog"))
     eventLog_uuid_element = ET.SubElement(eventLog_element, "uuid")
     eventLog_uuid_element.text = create_uuid()
     
-    # XMLツリーからidのリストを作成
+    ## XMLツリーからtemplate・instructionのid属性のリストをそれぞれ作成
     protocol = root.find("./protocol")
     templates = protocol.findall(".//materialTemplate") + protocol.findall(".//conditionTemplate") + protocol.findall(".//resultTemplate")
     template_ids = [template.get("id") for template in templates]
     instructions = protocol.findall(".//instruction")
     instruction_ids = [instruction.get("id") for instruction in instructions]
         
-    ## method要素のIDを取得し、エクセルシートを読み込む→log要素を追加
+    ## <method>要素のid属性値とエクセルデータのシート名を照合し、<log>要素を追加
     methods = protocol.findall(".//method")
     method_ids = [method.get("id") for method in methods]
     sheet_num = 0
     for method_id in method_ids:
         df_method = pd.DataFrame()
         try:
-            df_method = xls.parse(f"@{method_id}", header=None)
+            df_method = xls.parse(f"@{method_id}", header=None) # ヘッダー無し
         except Exception as e:
             print("Error while reading the sheet: ", e)
             exit(1)
-        #df_method = xls.parse[f"@{method_id}", header=None]
         if not df_method.empty:
             sheet_num += 1
-            ## <eventLog>要素に<log>要素を追加(idに自動生成した値、refにmethod要素のid値を設定)
+            ## <eventLog>要素に<log>要素を追加(id属性に自動生成した値、ref属性に<method>要素のid属性値を設定)
             log_element = ET.SubElement(eventLog_element, "log")
             log_element.set("id", setID("","log", sheet_num))
             log_element.set("ref", method_id)
             log_uuid_element = ET.SubElement(log_element, "uuid")
             log_uuid_element.text = create_uuid()
-            ## sheetの値を取得し、trace,event要素を追加
+            ## sheetの値を取得し、<trace>,<event>要素を追加
             ## １行目：instruction,templateのID
             row1 = df_method.iloc[0]
             template_list = {}
             instruction_list = {}
             for col_num, col in row1.items():
-                if col in template_ids:
+                # 1行目の値がtemplateのid属性値の場合（複数列存在）
+                if col in template_ids: 
                     if col in template_list.keys():
                         template_list[col].append(col_num)
                     else:
                         template_list[col] = [col_num]  # 新しいリストを作成
+                # 1行目の値が<instruction>要素のid属性値の場合（1列のみ存在）
                 if col in instruction_ids:
                     if col in instruction_list.keys():
                         ## エラー処理
@@ -228,39 +227,40 @@ def merge_data(root, xls, others_path=None):
                         instruction_list[col] = col_num  # 新しいリストを作成
             ## ２行目：１行目がtemplateのID列にkeyの値もしくは'INSERTION'
             row2 = df_method.iloc[1]
-            ## ３行目以降：１行目がtemplateのID列→resultsを作成／１行目がinstructionのID列に日付→eventのコンテンツに追加
+            ## ３行目以降：１行目がtemplateのID列→<results>要素を作成／１行目が<instruction>のID列に日付→<event>要素のコンテンツに追加
             row3over = df_method.iloc[2:]
             for _rownum, row in row3over.iterrows():
                 results_id = setID(row[0],"results")
-                ## <results>要素を追加(idに自動生成した値、refにlog要素のid値を設定)
+                ## <results>要素を追加(id属性に１列目の値を設定)
                 results_element = ET.SubElement(data_element, "results")
                 results_element.set("id", results_id)
                 results_uuid_element = ET.SubElement(results_element, "uuid")
                 results_uuid_element.text = create_uuid()
-                ## methodから全てのtemplateのIDを取得し、results要素に追加
+                ## MaiMLデータの全てのtemplateを取得し、<results>要素にインスタンス（material/condition/result）として追加
                 for template in templates:
                     template_id = template.get("id")
                     # MaiMLのtemplateのIDがエクセルのtemplate_listに含まれている場合、results要素にinstance要素を追加
                     element_name = template.tag
                     instance_element = ''
-                    if element_name == "materialTemplate":
+                    if element_name == "materialTemplate": # materialTemplate->material
                         instance_element = ET.SubElement(results_element, "material")
-                    elif element_name == "conditionTemplate":
+                    elif element_name == "conditionTemplate": # conditionTemplate->condition
                         instance_element = ET.SubElement(results_element, "condition")
-                    elif element_name == "resultTemplate":
+                    elif element_name == "resultTemplate": # resultTemplate->result
                         instance_element = ET.SubElement(results_element, "result")
                     instance_element.set("id", setID("",element_name,_rownum))
                     instance_element.set("ref", template_id)
                     instance_uuid_element = ET.SubElement(instance_element, "uuid")
                     instance_uuid_element.text = create_uuid()
-                    ## MaiMLのtemplate以下の汎用データコンテナを全てリストで取得する（keyは全て異なる値とする）
+                    # MaiMLのtemplate以下の汎用データコンテナを全てリストで取得する（keyは全て異なる値であることが前提）
                     template_properies = template.findall(".//property") + template.findall(".//content")
                     if template_properies is not None:
                         instance_properties = copy.deepcopy(template_properies)
+                        # 2行目の値が、汎用データコンテナのkey属性値の場合は<value>要素の値を上書き／"INSERTION"の場合は<insertion>要素を追加
                         for template_col_num in template_list[template_id]:
-                            ## row2[template_col_num]がinstance_propertiesのkeyに存在する場合、3行目以降のその列の値で上書き
+                            # row2[template_col_num]がinstance_propertiesのkeyに存在する場合、3行目以降のその列の値で上書き
                             key = row2[template_col_num]
-                            ## "INSERTION"の場合、insertion要素を追加
+                            # "INSERTION"の場合、insertion要素を追加
                             if key == "INSERTION":
                                 instance_element = makeInsertion(row[template_col_num], instance_element, others_path)
                                 continue
@@ -274,24 +274,24 @@ def merge_data(root, xls, others_path=None):
                                         value = formatter_num(general_element.get("formatString"), value)
                                     value_element.text = value
                         instance_element.extend(instance_properties)
-                        
+                ## <instruction>要素のid属性値から、<trace>,<event>要素を生成する
                 for instruction_id, instruction_colnum in instruction_list.items():
                     program_id , instruction_uuid = find_programID_by_instructionID(root,instruction_id)
-                    ## <trace>要素を追加(idに自動生成した値、refにlog要素のid値を設定)
+                    ## <trace>要素を追加(idに自動生成した値、refに<program>要素のid値を設定)
                     trace_element = ET.SubElement(log_element, "trace")
                     trace_element.set("id", setID("","trace", _rownum))
-                    trace_element.set("ref", program_id) ##### traceのrefはprogramのid
+                    trace_element.set("ref", program_id) # <trace>要素のref属性値は<program>要素のid属性値
                     trace_uuid_element = ET.SubElement(trace_element, "uuid")
                     trace_uuid_element.text = create_uuid()
                     
-                    ## <event>要素を追加(idに自動生成した値、refにtrace要素のid値を設定)
+                    ## <event>要素を追加(idに自動生成した値、refに<instruction>要素のid値を設定)
                     event_element = ET.SubElement(trace_element, "event")
                     event_element.set("id", setID("","event", _rownum))
-                    event_element.set("ref", instruction_id) ##### eventのrefはinstructionのid
+                    event_element.set("ref", instruction_id) # <event>要素のref属性値は<instruction>要素のid属性値
                     event_uuid_element = ET.SubElement(event_element, "uuid")
                     event_uuid_element.text = create_uuid()
                     
-                    ## 日付を取得し、event要素に追加
+                    ## ３行目以降の値（日付）を取得し、<event>要素に必要なコンテンツを追加
                     for col_num, col in row.items():
                         if col_num == instruction_colnum:
                             property_element1 = ET.SubElement(event_element, "property")
@@ -309,7 +309,7 @@ def merge_data(root, xls, others_path=None):
                             property_element3.set("key", "time:timestamp")
                             property_element3.set("formatString", "YYYY-MM-DDThh:mm:ss.ssTZD")
                             value_element3 = ET.SubElement(property_element3, "value")
-                            value_element3.text = changeTimeFormat(col)   ## フォーマットを変換してから追加
+                            value_element3.text = changeTimeFormat(col)   # 日付のフォーマットを変換してから追加
                             ## resultsRef要素を追加
                             resultsRef_element = ET.SubElement(event_element, "resultsRef")
                             resultsRef_element.set("id", f"{instruction_id}_{event_element.get('id')}_resultref")
@@ -320,17 +320,17 @@ def merge_data(root, xls, others_path=None):
     return root
                 
     
-## 新しいMaiMLファイルを書き出す
+## 生成したMaiMLデータをファイルに書き出す ##
 def write_maiml(root, output_file, namespaces):
     try:
         # ルート要素にすでにある名前空間を取得（ElementTreeが残してしまった名前空間への対処）
         existing_ns = {k: v for k, v in ET.ElementTree(root).getroot().attrib.items() if k.startswith("xmlns")}
         
-        # 元の名前空間を復元
+        ## 元の名前空間を復元
         for prefix, uri in namespaces.items():
             # 取得した名前空間をルート要素に設定（重複がある場合はスキップ）
             attr_name = f"xmlns:{prefix}" if prefix else "xmlns"
-            if attr_name not in existing_ns:  # すでにある場合は追加しない
+            if attr_name not in existing_ns:  # 名前空間がルート要素にすでに存在している場合は追加しない
                 if attr_name == "xmlns:xsi":  ## xmlns:xsiは隠れて存在するので追加しない（応急処置）
                     continue
                 else:
@@ -341,8 +341,9 @@ def write_maiml(root, output_file, namespaces):
         root.set("xsi:type", "maimlRootType")
         ## documentのuuid,date要素を更新
         root.find("./document").find("./uuid").text = create_uuid()
-        root.find("./document").find("./date").text = get_current_datetime()
-        
+        root.find("./document").find("./date").text = get_current_datetime() # 現在時刻をフォーマットして設定
+
+        ## ファイルに書き出す
         tree = ET.ElementTree(root)
         ET.indent(tree, space="    ", level=0)
         tree.write(output_file, encoding="utf-8", xml_declaration=True)
@@ -350,9 +351,9 @@ def write_maiml(root, output_file, namespaces):
         print('Error while writing to the file.',e)
         exit(1)
 
-
+## main処理 ##
 def main(maiml_input, excel_input, maiml_output, rootdir=None):
-    # MAiMLファイルの読み込み
+    ## MAiMLファイルの読み込み
     tree = '' 
     root = ''
     try:
@@ -362,7 +363,8 @@ def main(maiml_input, excel_input, maiml_output, rootdir=None):
         print("An error occurred while reading the input file.: "+ maiml_input)
         print(e)
         exit(1)
-    # Excelファイルの読み込み
+    
+    ## Excelファイルの読み込み
     xls = ''
     try:
         xls = pd.ExcelFile(excel_input)
@@ -371,12 +373,16 @@ def main(maiml_input, excel_input, maiml_output, rootdir=None):
         print("An error occurred while reading the input file.: "+ excel_input)
         print(e)
         exit(1)
-    
+        
+    ## MaiMLデータとエクセルデータをマージ
     root = merge_data(root, xls, rootdir)
+    
+    ## ファイルへ書き出し
     write_maiml(root, maiml_output, namespaces)
 
+## python実行関数 ##
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1: ## 引数ありで実行
         # 引数で指定したディレクトリ内のエクセルファイルを取得
         rootdir = Path( filePath().INPUT_DIR + sys.argv[1])
         if rootdir.exists() and rootdir.is_dir():
@@ -399,7 +405,7 @@ if __name__ == "__main__":
                 print("Successfully created the MaiML data file. ", outputMaimlpath)
             except Exception as e:
                         print('Error : ',e)
-    else:
+    else: ## 引数なしで実行
         inputMaimlpath = filePath().INPUT_MaiML_PATH
         inputExfilepath = filePath().INPUT_EXCEL_PATH
         outputMaimlpath = filePath().OUTPUT_FILE_PATH
