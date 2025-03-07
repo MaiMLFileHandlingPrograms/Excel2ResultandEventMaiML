@@ -305,9 +305,9 @@ def merge_data(root, xls, others_path=None):
                             value_element2 = ET.SubElement(property_element2, "value")
                             value_element2.text = "complete"
                             property_element3 = ET.SubElement(event_element, "property")
-                            property_element3.set("xsi:type", "dateType")
+                            property_element3.set("xsi:type", "dateTimeType")
                             property_element3.set("key", "time:timestamp")
-                            property_element3.set("formatString", "YYYY-MM-DDThh:mm:ss.ssTZD")
+                            property_element3.set("formatString", "YYYY-MM-DDThh:mm:ssTZD")
                             value_element3 = ET.SubElement(property_element3, "value")
                             value_element3.text = changeTimeFormat(col)   # 日付のフォーマットを変換してから追加
                             ## resultsRef要素を追加
