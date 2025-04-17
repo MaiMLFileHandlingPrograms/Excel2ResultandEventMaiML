@@ -257,22 +257,23 @@ def merge_data(root, xls, others_path=None):
                     if template_properies is not None:
                         instance_properties = copy.deepcopy(template_properies)
                         # 2行目の値が、汎用データコンテナのkey属性値の場合は<value>要素の値を上書き／"INSERTION"の場合は<insertion>要素を追加
-                        for template_col_num in template_list[template_id]:
-                            # row2[template_col_num]がinstance_propertiesのkeyに存在する場合、3行目以降のその列の値で上書き
-                            key = row2[template_col_num]
-                            # "INSERTION"の場合、insertion要素を追加
-                            if key == "INSERTION":
-                                instance_element = makeInsertion(row[template_col_num], instance_element, others_path)
-                                continue
-                            for general_element in instance_properties:
-                                if general_element.get("key") == key:
-                                    value_element = general_element.find("./value") ## value要素は１つに限定
-                                    if value_element is None:
-                                        value_element = ET.SubElement(general_element, "value")
-                                    value = nan_to_empty_string(row[template_col_num])
-                                    if pd.notna(general_element.get("formatString")):
-                                        value = formatter_num(general_element.get("formatString"), value)
-                                    value_element.text = value
+                        if template_id in template_list.keys():
+                            for template_col_num in template_list[template_id]:
+                                # row2[template_col_num]がinstance_propertiesのkeyに存在する場合、3行目以降のその列の値で上書き
+                                key = row2[template_col_num]
+                                # "INSERTION"の場合、insertion要素を追加
+                                if key == "INSERTION":
+                                    instance_element = makeInsertion(row[template_col_num], instance_element, others_path)
+                                    continue
+                                for general_element in instance_properties:
+                                    if general_element.get("key") == key:
+                                        value_element = general_element.find("./value") ## value要素は１つに限定
+                                        if value_element is None:
+                                            value_element = ET.SubElement(general_element, "value")
+                                        value = nan_to_empty_string(row[template_col_num])
+                                        if pd.notna(general_element.get("formatString")):
+                                            value = formatter_num(general_element.get("formatString"), value)
+                                        value_element.text = value
                         instance_element.extend(instance_properties)
                 ## <instruction>要素のid属性値から、<trace>,<event>要素を生成する
                 for instruction_id, instruction_colnum in instruction_list.items():
