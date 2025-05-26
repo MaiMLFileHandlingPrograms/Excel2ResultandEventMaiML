@@ -248,7 +248,7 @@ def merge_data(root, xls, others_path=None):
                         instance_element = ET.SubElement(results_element, "condition")
                     elif element_name == "resultTemplate": # resultTemplate->result
                         instance_element = ET.SubElement(results_element, "result")
-                    instance_element.set("id", setID("",element_name,_rownum))
+                    instance_element.set("id", setID("",element_name[:-8]+"_"+template_id,_rownum))
                     instance_element.set("ref", template_id)
                     instance_uuid_element = ET.SubElement(instance_element, "uuid")
                     instance_uuid_element.text = create_uuid()
