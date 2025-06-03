@@ -55,7 +55,7 @@ def find_programID_by_instructionID(root, instruction_id):
     return None
 
 ### insertion要素のコンテンツを作成 ###
-def makeInsertion(value, instance_element, others_path=None):
+def make_insertion(value, instance_element, others_path=None):
     if pd.isna(value) or value == "":
         return instance_element
     filename = str(value)
@@ -96,8 +96,18 @@ def makeInsertion(value, instance_element, others_path=None):
     insertion_format_element.text = mime_type
     return instance_element
 
+### 再帰的にproperty/content要素を探索し、keyが一致する要素を返す
+def find_general_elements_by_key(element, key):
+    matched_elements = []
+    if element.tag in ("property", "content") and element.get("key") == key:
+        matched_elements.append(element)
+    for child in element:
+        matched_elements.extend(find_general_elements_by_key(child, key))
+    return matched_elements
+
+
 ### エクセルの日付のフォーマットをMaiMLのフォーマットに変換 ###
-def changeTimeFormat(e_datetime):
+def change_time_format(e_datetime):
     e_datetime = pd.to_datetime(e_datetime).tz_localize(time().TIME_ZONE)
     return e_datetime.strftime(time().TIME_FORMAT)[:22] + ':' + e_datetime.strftime('%z')[3:]
 
@@ -143,7 +153,6 @@ def read_maiml(maiml_file):
         
     # XML文字列をElementTreeで読み込む
     tree = ET.ElementTree(ET.fromstring(xml_str))
-    #tree = ET.parse(maiml_file)
     root = tree.getroot()
         
     # タグから名前空間プレフィックスを削除（名前空間を気にせずに処理するため/xmlns:xsiは残る）
@@ -238,8 +247,10 @@ def merge_data(root, xls, others_path=None):
                 results_uuid_element.text = create_uuid()
                 ## MaiMLデータの全てのtemplateを取得し、<results>要素にインスタンス（material/condition/result）として追加
                 for template in templates:
+                    #print("template: ", template)
+
+                    # results要素にinstance要素を追加
                     template_id = template.get("id")
-                    # MaiMLのtemplateのIDがエクセルのtemplate_listに含まれている場合、results要素にinstance要素を追加
                     element_name = template.tag
                     instance_element = ''
                     if element_name == "materialTemplate": # materialTemplate->material
@@ -248,14 +259,18 @@ def merge_data(root, xls, others_path=None):
                         instance_element = ET.SubElement(results_element, "condition")
                     elif element_name == "resultTemplate": # resultTemplate->result
                         instance_element = ET.SubElement(results_element, "result")
-                    instance_element.set("id", setID("",element_name[:-8]+"_"+template_id,_rownum))
+                    #instance_element.set("id", setID("",element_name,_rownum))
+                    instance_element.set("id", setID("",element_name[:-8]+'_'+template_id,_rownum))
                     instance_element.set("ref", template_id)
                     instance_uuid_element = ET.SubElement(instance_element, "uuid")
                     instance_uuid_element.text = create_uuid()
-                    # MaiMLのtemplate以下の汎用データコンテナを全てリストで取得する（keyは全て異なる値であることが前提）
-                    template_properies = template.findall(".//property") + template.findall(".//content")
-                    if template_properies is not None:
-                        instance_properties = copy.deepcopy(template_properies)
+                    
+                    # template直下のpropertyとcontentのみ取得
+                    template_properties = list(template.findall("./property")) + list(template.findall("./content"))
+
+                    if template_properties:
+                        instance_properties = [copy.deepcopy(prop) for prop in template_properties]
+                        
                         # 2行目の値が、汎用データコンテナのkey属性値の場合は<value>要素の値を上書き／"INSERTION"の場合は<insertion>要素を追加
                         if template_id in template_list.keys():
                             for template_col_num in template_list[template_id]:
@@ -263,18 +278,22 @@ def merge_data(root, xls, others_path=None):
                                 key = row2[template_col_num]
                                 # "INSERTION"の場合、insertion要素を追加
                                 if key == "INSERTION":
-                                    instance_element = makeInsertion(row[template_col_num], instance_element, others_path)
+                                    instance_element = make_insertion(row[template_col_num], instance_element, others_path)
                                     continue
+                                
                                 for general_element in instance_properties:
-                                    if general_element.get("key") == key:
-                                        value_element = general_element.find("./value") ## value要素は１つに限定
+                                    # key一致する要素を再起的に探す
+                                    matched_elements = find_general_elements_by_key(general_element, key)
+                                    for match in matched_elements:
+                                        value_element = match.find("./value")
                                         if value_element is None:
-                                            value_element = ET.SubElement(general_element, "value")
+                                            value_element = ET.SubElement(match, "value")
                                         value = nan_to_empty_string(row[template_col_num])
-                                        if pd.notna(general_element.get("formatString")):
-                                            value = formatter_num(general_element.get("formatString"), value)
+                                        if pd.notna(match.get("formatString")):
+                                            value = formatter_num(match.get("formatString"), value)
                                         value_element.text = value
                         instance_element.extend(instance_properties)
+                        
                 ## <instruction>要素のid属性値から、<trace>,<event>要素を生成する
                 for instruction_id, instruction_colnum in instruction_list.items():
                     program_id , instruction_uuid = find_programID_by_instructionID(root,instruction_id)
@@ -287,7 +306,7 @@ def merge_data(root, xls, others_path=None):
                     
                     ## <event>要素を追加(idに自動生成した値、refに<instruction>要素のid値を設定)
                     event_element = ET.SubElement(trace_element, "event")
-                    event_element.set("id", setID("","event", _rownum))
+                    event_element.set("id", setID("","event_"+instruction_id, _rownum))
                     event_element.set("ref", instruction_id) # <event>要素のref属性値は<instruction>要素のid属性値
                     event_uuid_element = ET.SubElement(event_element, "uuid")
                     event_uuid_element.text = create_uuid()
@@ -310,7 +329,7 @@ def merge_data(root, xls, others_path=None):
                             property_element3.set("key", "time:timestamp")
                             property_element3.set("formatString", "YYYY-MM-DDThh:mm:ssTZD")
                             value_element3 = ET.SubElement(property_element3, "value")
-                            value_element3.text = changeTimeFormat(col)   # 日付のフォーマットを変換してから追加
+                            value_element3.text = change_time_format(col)   # 日付のフォーマットを変換してから追加
                             ## resultsRef要素を追加
                             resultsRef_element = ET.SubElement(event_element, "resultsRef")
                             resultsRef_element.set("id", f"{instruction_id}_{event_element.get('id')}_resultref")
